@@ -1,94 +1,93 @@
-import itertools
+import math 
 
 class Solution:
+
     def outerTrees(self, trees: list[list[int]]) -> list[list[int]]:
-        # Step 1: Create the smallest box
-        top_trees = [trees[0]]
-        bot_trees = [trees[0]]
-        right_trees = [trees[0]]
-        left_trees = [trees[0]]
 
-        for tree in trees[1:]:
-
-            if (tree[1] >= top_trees[0][1]):
-                if (tree[1] == top_trees[0][1]):
-                    # Add to list
-                    top_trees.append(tree)
-                else:
-                    top_trees = [tree]
-            
-            if (tree[1] <= bot_trees[0][1]):
-                if (tree[1] == bot_trees[0][1]):
-                    # Add to list
-                    bot_trees.append(tree)
-                else:
-                    bot_trees = [tree]
-
-            if (tree[0] >= right_trees[0][0]):
-                if (tree[0] == right_trees[0][0]):
-                    # Add to list
-                    right_trees.append(tree)
-                else:
-                    right_trees = [tree]
-
-            if (tree[0] <= left_trees[0][0]):
-                if (tree[0] == left_trees[0][0]):
-                    # Add to list
-                    left_trees.append(tree)
-                else:
-                    left_trees = [tree]
+        def get_bottom_left_tree(trees:list[list[int]]) -> list[int]:
+            '''
+            Gives the tree located on bottom and
+            if there are multiple options,
+            return the leftmost bottom tree.
+            '''
+            coor_min:list[int] = trees[0]
+            for coor in trees[1:]:
+                # Accept if (< min_y) or (== min_y and < min_x)
+                if (coor[1] < coor_min[1]) or (coor[1] == coor_min[1] and coor[0] < coor_min[0]):
+                    coor_min = coor
+            return coor_min
         
-        # Step 2: Identity all trees at each side of the box.
-        #print(f"Left Trees: {left_trees}, Right Trees: {right_trees}, Top Trees: {top_trees}, Bot Trees: {bot_trees}")
-        left_trees = sorted(left_trees)
-        right_trees = sorted(right_trees)
-        top_trees = sorted(top_trees)
-        bot_trees = sorted(bot_trees)
+        def get_quadrants(ref_tree:list[int], trees:list[list[int]]) -> list[list[list[int]]]:
+            '''
+            Divide remaining trees into fourth quadrants, from the POV of the reference tree.
+            '''
+            trees = [coor for coor in trees if not (coor[0] == ref_tree[0] and coor[1] == ref_tree[1])] # Remove Reference Tree from all trees 
+            first_quadrant:list[list[int]] = [coor for coor in trees if (coor[0] > ref_tree[0] and coor[1] >= ref_tree[1])] # To the Right (exclusive) + To the Top (inclusive)
+            second_quadrant:list[list[int]] = [coor for coor in trees if (coor[0] <= ref_tree[0] and coor[1] > ref_tree[1])] # To the Left (inclusive) + To the Top (exclusive)
+            third_quadrant:list[list[int]] = [coor for coor in trees if (coor[0] < ref_tree[0] and coor[1] <= ref_tree[1])] # To the Left (exclusive) + To the Bottom (inclusive)
+            fourth_quadrant:list[list[int]] = [coor for coor in trees if (coor[0] >= ref_tree[0] and coor[1] < ref_tree[1])] # To the Right (inclusive) + To the Bottom (exclusive)
+            return [first_quadrant, second_quadrant, third_quadrant, fourth_quadrant]
 
-        # Step 3: Draw 4 lines.
-
-        #top_right
-        pt1 = top_trees[-1]
-        pt2 = right_trees[-1]
-        a1 = pt2[1] - pt1[1]
-        b1 = pt1[0] - pt2[0]
-        c1 = a1*pt1[0] + b1*pt1[1]
-        top_right_diag = lambda x: (a1*x[0]+b1*x[1]==c1)
-
-        #right_bot
-        pt1 = right_trees[0]
-        pt2 = bot_trees[-1]
-        a2 = pt2[1] - pt1[1]
-        b2 = pt1[0] - pt2[0]
-        c2 = a2*pt1[0] + b2*pt1[1]
-        right_bot_diag = lambda x: (a2*x[0]+b2*x[1]==c2)
-
-        #bot_left
-        pt1 = bot_trees[0]
-        pt2 = left_trees[0]
-        a3 = pt2[1] - pt1[1]
-        b3 = pt1[0] - pt2[0]
-        c3 = a3*pt1[0] + b3*pt1[1]
-        bot_left_diag = lambda x: (a3*x[0]+b3*x[1]==c3)
-
-        #left_top
-        pt1 = left_trees[-1]
-        pt2 = top_trees[0]
-        a4 = pt2[1] - pt1[1]
-        b4 = pt1[0] - pt2[0]
-        c4 = a4*pt1[0] + b4*pt1[1]
-        left_top_diag = lambda x: (a4*x[0]+b4*x[1]==c4)
-
-        # Step 4: Check if any other points lies on the 8 lines
-        boundary = top_trees + bot_trees + left_trees + right_trees
-        rest = [x for x in trees if x not in boundary]
-        boundary_test = lambda x: top_right_diag(x) or right_bot_diag(x) or bot_left_diag(x) or left_top_diag(x)
-        for tree in rest:
-            if boundary_test(tree):
-                boundary.append(tree)
+        def get_first_available_quadrant(ref_quadrant:int, quadrants:list[list[list[int]]]) -> list[list[int]]:
+            '''
+            From all four quadrants, returns the first quadrant with at least 1 point
+            '''
+            for i in range(len(quadrants)):
+                i = (i+ref_quadrant-1)%4
+                if quadrants[i]:
+                    return i+1, quadrants[i]
         
-        boundary.sort()
-        return list(boundary for boundary,_ in itertools.groupby(boundary))
+        def get_perimeter_trees(ref_tree:list[int], selected_quadrant:list[list[int]]) -> list[int]:
+            '''
+            Calculate the smallest gradient from the reference point and
+            return a list of all trees with that gradient.
+            '''
 
-points = [[1,1],[2,2],[2,0],[2,4],[3,3],[4,2]]
-print(Solution().outerTrees(points))
+            def divide(num:int, denom:int) -> float:
+                return (num/denom if denom != 0 else -math.inf)
+
+            gradients:list[float] = [divide(coor[1]-ref_tree[1],coor[0]-ref_tree[0]) for coor in selected_quadrant]
+            gradient_min:float = min(gradients)
+            gradient_min_idxs = [i for i,v in enumerate(gradients) if v == gradient_min]
+            return [selected_quadrant[idx] for idx in gradient_min_idxs]
+
+        def get_next_tree(ref_tree:list[int], perimeter_trees:list[list[int]]):
+            '''
+            Used for tiebreaking.
+            Returns the furthest trees from the perimeter trees in focus, using Manhattan distance.
+            '''
+            if len(perimeter_trees) == 1:
+                return perimeter_trees[0]
+
+            distances:list[int]  = [(abs(coor[1]-ref_tree[1]) + abs(coor[0]-ref_tree[0])) for coor in perimeter_trees]
+            distances_max:int = max(distances)
+            distances_max_idx = distances.index(distances_max)
+            return perimeter_trees[distances_max_idx]
+
+        def add(trees, res):
+            '''
+            Used to remove duplicates from list of tree coordinates.
+            '''
+            [res.append(x) for x in trees if x not in res]         
+
+        if len(trees) == 1:
+            # Edge Case: Only 1 tree.
+            return trees
+
+        start_tree:list[int] = get_bottom_left_tree(trees)
+        perimeter_trees:list[list[int]] = [start_tree]
+        ref_tree:list[int] = start_tree
+        ref_quadrant:int = 1
+        while True: # This is the maximum number of tries to build a parameter
+            quadrants:list[list[list[int]]] = get_quadrants(ref_tree, trees)
+            ref_quadrant, selected_quadrant = get_first_available_quadrant(ref_quadrant, quadrants)
+            curr_perimeter_trees:list[int] = get_perimeter_trees(ref_tree, selected_quadrant)
+            add(curr_perimeter_trees, perimeter_trees)
+            next_tree:list[int] = get_next_tree(ref_tree, curr_perimeter_trees)
+            ref_tree = next_tree
+            if next_tree == start_tree:
+                break
+        return perimeter_trees
+
+trees = [[1,1],[2,2],[2,0],[2,4],[3,3],[4,2]]
+print(Solution().outerTrees(trees))

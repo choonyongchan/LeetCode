@@ -35,10 +35,6 @@ class Solution:
                 i += 1
         return result
 
-nums = [0,0,0]
-
-print(Solution().threeSum(nums))
-
 
 
                 
